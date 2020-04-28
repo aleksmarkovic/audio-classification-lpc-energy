@@ -53,8 +53,8 @@ def CutVoices(fname):
     for i in range(0, numOfLines):
         tfm=sox.Transformer()
         tfm.trim(float(content[i][0])*10**-7, float(content[i][1])*10**-7)
-        Path("RawVoices/" + content[i][2]).mkdir(parents = True, exist_ok = True)
-        tfm.build(fname + ".wav", "RawVoices/" + content[i][2] + "/" + content[i][2] + "-" + str(nVoices) + ".raw")
+        Path("Voices/" + content[i][2]).mkdir(parents = True, exist_ok = True)
+        tfm.build(fname + ".wav", "Voices/" + content[i][2] + "/" + content[i][2] + "-" + str(nVoices) + ".wav")
         nVoices = nVoices + 1
     return
 
@@ -391,42 +391,50 @@ def printWave(path, signal):
     
 def calculateEnergy(signal):
     #arr = np.array([2, 3, 2])
-    energy = np.sum(signal**2)
+#    energy = np.sum(signal**2)
+    energy = 0
+    N = len(signal)
+    e = 10**-8
+    for S in signal:    
+        energy += (1/N) * np.sum(S**2)
+    energy += 10*math.log(math.e + energy)
     #energy = pysptk.sptk.
 #    energy = 0
 #    for en in signal:
 #        energy = energy + en**2
-    return energy
+    return energy/10**6
 
 def eachSoundEnergy():
     f = []
     for (dirpath, dirnames, filenames) in os.walk("Voices/"):
-        f.extend(filenames)
-        break
-    results = {}
-    for sound in f:
-        spf = wave.open("Voices/" + sound, "r")        
-        # Extract Raw Audio from Wav File
-        signal = spf.readframes(-1)
-        signal = np.frombuffer(signal, "Int16")
-        fftSignal = np.fft.fft(signal)
-        results.update({ sound : calculateEnergy(fftSignal) })
-        #print(sound + " " + str(calculateEnergy(fftSignal)))
-        printWave("Voices/" + sound, signal)
+        for dirname in dirnames:
+            for filename in os.listdir("Voices/" + dirname + "/"): 
+                filePath = "Voices/" + dirname + "/" + filename
+                fileData = []
+                results = {}
 
-    return results
+                spf = wave.open("Voices/" + dirname +"/" + filename, "r")        
+                # Extract Raw Audio from Wav File
+                signal = spf.readframes(-1)
+                signal = np.frombuffer(signal, "Int16")
+#                fftSignal = np.fft.fft(signal)
+#                results.update({ filename : calculateEnergy(fftSignal) })
+                print(filename + " " + str(calculateEnergy(signal)))
+#                printWave("Voices/" + dirname +"/" + filename, signal)
+
+#    return results
 
 
 
-#CutVoices("sm04010103301")
+CutVoices("sm04010103201")
 #ToRaw("sm04010105160.wav")
-lpcCoeff()
+#lpcCoeff()
 #lpcCoeffSingle("sm04010105160.wav")
-wav, rawSegments = ReadValues("sm04010105160.raw.lpc.txt")
-resultString = Euclidian(wav, rawSegments)
-FilterOne(resultString)
+#wav, rawSegments = ReadValues("sm04010105160.raw.lpc.txt")
+#resultString = Euclidian(wav, rawSegments)
+#FilterOne(resultString)
 #Energies(wav, rawSegments)
-#eachSoundEnergy()
+eachSoundEnergy()
 #CalcWindow()
 
 #MOJE
