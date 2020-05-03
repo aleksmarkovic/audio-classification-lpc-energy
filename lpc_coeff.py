@@ -14,9 +14,10 @@ import librosa
 frame_length=320
 hop_length=160
 for filename in os.listdir('Voices'):
-    f=open('LPCCoeff/'+filename+'.lpc', 'w')
+    f=open('LPCCoeff/test/'+filename+'.lpc', 'w')
     output=np.empty((0, 13))
     for i in os.listdir('Voices/'+filename):
+        print(filename)
         FSample, samples=scipy.io.wavfile.read('Voices/'+filename+'/'+i)
         #samplesFloat=samples.astype(float)
         if len(samples)>=320:
@@ -25,10 +26,10 @@ for filename in os.listdir('Voices'):
             assert frames.shape[1]==frame_length
             try:
                 lpcCoeff=pysptk.sptk.lpc(frames[0], 12)
-                lpcCoeff=pysptk.sptk.lpc2c(lpcCoeff, 12)
+#                lpcCoeff=pysptk.sptk.lpc2c(lpcCoeff, 12)
                 output=np.append(output, np.array([lpcCoeff]), axis=0)
             except Exception:
                 pass
-    np.savetxt(f, output, fmt='%.7f')
+#    np.savetxt(f, output, fmt='%.7f')
     del output
     f.close()

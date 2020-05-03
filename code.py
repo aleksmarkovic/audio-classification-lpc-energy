@@ -15,6 +15,7 @@ import wave
 from pathlib import Path
 from scipy.spatial import distance
 import math
+import librosa
 
 
 #PRIMJER
@@ -32,7 +33,12 @@ import math
 #    Audio(x, rate=sr)
 
 
+classification = { "voiced": ["b", "d", "g", "z", "Z", "dZ", "D", "v"],
+                  "unvoiced": ["p", "t", "k", "s", "S", "C", "cc", "h", "f"],
+                  "silence": "sil" }
 
+energyResult = {}
+lpcResult = {}
 
 def file_len(fname):
     with open(fname) as f:
@@ -124,6 +130,145 @@ def CalcWindow():
                 os.system("frame -l 320 -p 320 " + filenamePath + " | window -l 320" + " | x2x +fa > Window/" + dirname + "/" + filename[:4] + ".window")
 #                os.system("x2x +sf " + filenamePath + " | frame < " + filenamePath + " | window | " + "lpc -m 20" + " | x2x +fa13 > LPCCoeff/RawSegments/" + dirname + "/" + filename[:4] + ".lpc.txt")
     ShowPositiveWindow()
+    
+def lpcCoeffNew():
+    frameLength = 320
+    hopLength = 160
+    results = {}
+    for (dirpath, dirnames, filenames) in os.walk("Voices/"):
+        for dirname in dirnames:
+            for filename in os.listdir("Voices/" + dirname + "/"):
+                #Prvo gre za sve wav-ove
+                filenamePath = "Voices/" + dirname + "/" + filename
+                f = open("LPCCoeff/LPC/" + filename + ".lpc.txt", "w")
+                Path("LPCCoeff/LPC/" + dirname).mkdir(parents = True, exist_ok = True)      
+#                print(filenamePath)
+                result = np.empty((0, 13))
+                spf = wave.open(filenamePath, "r")        
+                # Extract Raw Audio from Wav File
+                samples = spf.readframes(-1)
+                samples = np.frombuffer(samples, "Int16")
+#                print(len(samples))
+#                FSample, samples=scipy.io.wavfile.read(filenamePath)
+
+                if len(samples) >= 320:
+                        frames = librosa.util.frame(samples, frameLength, hopLength).astype(np.float64).T
+                        frames *= pysptk.blackman(frameLength)
+                        assert frames.shape[1] == frameLength
+                        try:
+                            lpcCoeff = pysptk.sptk.lpc(frames[0], 12)
+            #                lpcCoeff=pysptk.sptk.lpc2c(lpcCoeff, 12)
+                            result = np.append(result, np.array([lpcCoeff]), axis=0)
+                            results.update( { filename[:4]: result[0] } )                            
+#                            print(result)
+                        except Exception:
+                            pass
+                np.savetxt(f, result, fmt='%.6f')
+                f.close()
+    return results
+
+def lpcClassification(lpcData):
+    mean = np.zeros(12)
+    tmpDict = lpcData.copy()
+    voiced = []
+    unvoiced = []
+    silence = []
+    for lpc in lpcData: #ZA SVE MEMBERS VECTORA
+        if lpc.split("-")[0] in classification["voiced"]:
+            voiced.append(lpc)
+#            print(lpc + " is VOICED")
+        elif lpc.split("-")[0] in classification["unvoiced"]:    
+            unvoiced.append(lpc)
+#            print(lpc + " is UNVOICED")
+        elif lpc.split("-")[0] == classification["silence"]:    
+            silence.append(lpc)
+#            print(lpc + " is SILENCE")
+        else:
+            del(tmpDict[lpc])
+            continue
+#        print(lpcData[lpc])
+        if lpc[:3] != "sil":            
+            mean += lpcData[lpc][1:]
+    lpcData = tmpDict
+    mean = mean / len(lpcData)
+#    print(mean)
+    
+#    print("\nACTUAL RESULT\n")
+#    print("MEAN - ", mean, "\n")
+#    print(lpcData)
+    voicedResult = []
+    unvoicedResult = []
+    silenceResult = []
+    meanEuclidDistance = 0
+    for lpc in lpcData:
+        meanEuclidDistance += distance.euclidean(lpcData[lpc][1:], mean)
+    meanEuclidDistance = meanEuclidDistance / len(lpcData)
+#    print(meanEuclidDistance)
+    for lpc in lpcData:
+        if  distance.euclidean(lpcData[lpc][1:], mean) >= meanEuclidDistance:
+            voicedResult.append(lpc)
+            lpcResult.update({ lpc: "VOICED" })
+#            print(lpc + " is VOICED", distance.euclidean(lpcData[lpc][1:], mean))
+        else:
+            unvoicedResult.append(lpc)
+            lpcResult.update({ lpc: "UNVOICED" })
+#            print(lpc + " is UNVOICED", distance.euclidean(lpcData[lpc][1:], mean))
+    
+    #PRVI LPC KOEF.
+#    mean = 0
+#    for lpc in lpcData: 
+#        if lpc.split("-")[0] in classification["voiced"]:
+#            voiced.append(lpc)
+#            print(lpc + " is VOICED")
+#        elif lpc.split("-")[0] in classification["unvoiced"]:    
+#            unvoiced.append(lpc)
+#            print(lpc + " is UNVOICED")
+#        elif lpc.split("-")[0] == classification["silence"]:    
+#            silence.append(lpc)
+#            print(lpc + " is SILENCE")
+#        else:
+#            del(tmpDict[lpc])
+#            continue
+##        print(lpcData[lpc])
+#        mean += lpcData[lpc][1]
+#    lpcData = tmpDict
+#    mean = mean / len(lpcData)
+#    print(mean)
+#    
+#    print("\nACTUAL RESULT\n")
+#    print("MEAN - ", mean, "\n")
+##    print(lpcData)
+#    voicedResult = []
+#    unvoicedResult = []
+#    silenceResult = []
+#
+#    for lpc in lpcData:
+#        if  lpcData[lpc][1] >= mean:
+#            voicedResult.append(lpc)
+#            print(lpc + " is VOICED ", lpcData[lpc][1])
+#        else:
+#            unvoicedResult.append(lpc)
+#            print(lpc + " is UNVOICED ", lpcData[lpc][1])
+#    correctNumbers = 0
+#
+#    for v in voicedResult:
+#        if v in voiced:
+#            correctNumbers += 1
+#    print("VOICED CORRECT: ", correctNumbers/len(voiced) * 100, "%")
+#            
+#    correctNumbers = 0
+#    for v in unvoicedResult:
+#        if v in unvoiced:
+#            correctNumbers += 1
+#    print("UNVOICED CORRECT: ", correctNumbers/len(unvoiced) * 100, "%")
+#    
+#    correctNumbers = 0
+#    for v in silenceResult:
+#        if v in silence:
+#            correctNumbers += 1
+#    print("SILENCE CORRECT: ", correctNumbers/len(silence) * 100, "%")
+
+    
 
 def ShowPositiveWindow():
     bezz = ""
@@ -389,29 +534,23 @@ def printWave(path, signal):
     
     return signal
     
-def calculateEnergy(signal):
-    #arr = np.array([2, 3, 2])
-#    energy = np.sum(signal**2)
+def CalculateEnergy(signal):
     energy = 0
     N = len(signal)
     e = 10**-8
     for S in signal:    
         energy += (1/N) * np.sum(S**2)
     energy += 10*math.log(math.e + energy)
-    #energy = pysptk.sptk.
-#    energy = 0
-#    for en in signal:
-#        energy = energy + en**2
     return energy/10**6
 
-def eachSoundEnergy():
-    f = []
+def EachSoundEnergy():
+    results = {}
     for (dirpath, dirnames, filenames) in os.walk("Voices/"):
         for dirname in dirnames:
             for filename in os.listdir("Voices/" + dirname + "/"): 
                 filePath = "Voices/" + dirname + "/" + filename
                 fileData = []
-                results = {}
+                
 
                 spf = wave.open("Voices/" + dirname +"/" + filename, "r")        
                 # Extract Raw Audio from Wav File
@@ -419,14 +558,79 @@ def eachSoundEnergy():
                 signal = np.frombuffer(signal, "Int16")
 #                fftSignal = np.fft.fft(signal)
 #                results.update({ filename : calculateEnergy(fftSignal) })
-                print(filename + " " + str(calculateEnergy(signal)))
+#                print(filename + " " + str(CalculateEnergy(signal)))
+                results.update({ filename[:4]: CalculateEnergy(signal) })
 #                printWave("Voices/" + dirname +"/" + filename, signal)
+    return results
 
-#    return results
+def ClassificateEnergy(energyResults):
+    mean = 0
+    tmpDict = energyResults.copy()
+    voiced = []
+    unvoiced = []
+    silence = []
+    for energy in energyResults:
+        if energy.split("-")[0] in classification["voiced"]:
+            voiced.append(energy)
+#            print(energy + " is VOICED")
+        elif energy.split("-")[0] in classification["unvoiced"]:    
+            unvoiced.append(energy)
+#            print(energy + " is UNVOICED")
+        elif energy.split("-")[0] == classification["silence"]:    
+            silence.append(energy)
+#            print(energy + " is SILENCE")
+        else:
+            del(tmpDict[energy])
+            continue
+        mean += energyResults[energy]   
+
+    energyResults = tmpDict
+    mean = mean / len(energyResults)
+    
+#    print("\nACTUAL RESULT\n")
+#    print("MEAN - ", mean, "\n")
+    
+    voicedResult = []
+    unvoicedResult = []
+    silenceResult = []
+    
+    for energy in energyResults:
+        if energyResults[energy] >= mean:
+            energyResult.update({ energy: "VOICED" })
+            voicedResult.append(energy)
+#            print(energy + " is VOICED")
+        elif energyResults[energy] < 0.1:
+            energyResult.update({ energy: "SILENCE" })
+            silenceResult.append(energy)
+#            print(energy + "is SILENCE")
+        else:
+            energyResult.update({ energy: "UNVOICED" })
+            unvoicedResult.append(energy)
+#            print(energy + " is UNVOICED")
+    
+    correctNumbers = 0
+
+    for v in voicedResult:
+        if v in voiced:
+            correctNumbers += 1
+#    print("VOICED CORRECT: ", correctNumbers/len(voiced) * 100, "%")
+            
+    correctNumbers = 0
+    for v in unvoicedResult:
+        if v in unvoiced:
+            correctNumbers += 1
+#    print("UNVOICED CORRECT: ", correctNumbers/len(unvoiced) * 100, "%")
+    
+    correctNumbers = 0
+    for v in silenceResult:
+        if v in silence:
+            correctNumbers += 1
+#    print("SILENCE CORRECT: ", correctNumbers/len(silence) * 100, "%")
 
 
 
-CutVoices("sm04010103201")
+
+#CutVoices("sm04010103201")
 #ToRaw("sm04010105160.wav")
 #lpcCoeff()
 #lpcCoeffSingle("sm04010105160.wav")
@@ -434,7 +638,15 @@ CutVoices("sm04010103201")
 #resultString = Euclidian(wav, rawSegments)
 #FilterOne(resultString)
 #Energies(wav, rawSegments)
-eachSoundEnergy()
+lpcCoeffs = lpcCoeffNew()
+lpcClassification(lpcCoeffs)
+#!DELA
+energyValues = EachSoundEnergy()
+ClassificateEnergy(energyValues)
+#!
+print(lpcResult)
+print(energyResult)
+    
 #CalcWindow()
 
 #MOJE
