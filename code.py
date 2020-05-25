@@ -14,7 +14,7 @@ import librosa
 import json
 
 
-classification = { "voiced": ["b", "d", "g", "z", "Z", "dZ", "D", "v"],
+classification = { "voiced": ["b", "d", "g", "z", "Z", "dZ", "D"],
                   "unvoiced": ["p", "t", "k", "s", "S", "C", "cc", "h", "f"],
                   "silence": "sil" }
 energyResult = {}
@@ -123,9 +123,11 @@ def lpcClassification(lpcData):
         if  distance.euclidean(lpcData[lpc][1:], mean) >= meanEuclidDistance * alpha:
             voicedResult.append(lpc)
             lpcResult.update({ lpc: "VOICED" })
+            print(lpc + "VOICED")
         else:
             unvoicedResult.append(lpc)
             lpcResult.update({ lpc: "UNVOICED" })
+            print(lpc + "UNVOICED")
 
 def CalculateEnergy(signal):
     energy = 0
@@ -186,16 +188,16 @@ def ClassificateEnergy(energyResults):
         if energyResults[energy] >= mean:
             energyResult.update({ energy: "VOICED" })
             voicedResult.append(energy)
-#            print(energy + " is VOICED")
+            print(energy + " is VOICED")
         elif energyResults[energy] in minValues:
             energyResult.update({ energy: "SILENCE" })
             silenceResult.append(energy)
 #            print(energy + " is UNVOICED", energyResults[energy])
-#            print(energy + "is SILENCE")
+            print(energy + "is SILENCE")
         else:
             energyResult.update({ energy: "UNVOICED" })
             unvoicedResult.append(energy)
-#            print(energy + " is UNVOICED", energyResults[energy])
+            print(energy + " is UNVOICED", energyResults[energy])
     
     correctNumbers = 0
 
@@ -225,21 +227,21 @@ def FinalClassification(fname):
 #            continue
         if lpcResult[l] == energyResult[l]:
 #            print(l + " is 100% " + lpcResult[l])
-            finalResult.update({ l: " is 100% " + lpcResult[l] })
+            finalResult.update({ l: " is " + lpcResult[l] })
             perc += 1
         elif energyResult[l] == "SILENCE":
 #            print(l + " is 100% " + energyResult[l])
-            finalResult.update({ l: " is 100% " + energyResult[l] })
+            finalResult.update({ l: " is " + energyResult[l] })
             perc += 1
         else:
 #            print(l + " is 50% ")
-            finalResult.update({ l: " is 50/50" })
+            finalResult.update({ l: " is " + lpcResult[l] })
             
     perc = perc/len(lpcResult) * 100
     correctRatio = perc
     perc = "{:.2f}".format(perc)
     print("CORRECT IS: ", perc, "%")
-    finalResult.update({ "FINAL RESULT":  str(perc) + "%" })
+#    finalResult.update({ "FINAL RESULT":  str(perc) + "%" })
 #    f = open("Results/" + fname,"w")
 #    f.write(str(finalResult))
 #    f.close()
@@ -263,9 +265,9 @@ for file in materials:
     print(fname)
     CutVoices(fname)
     lpcCoeffs = lpcCoeff(fname)
-    energyValues = EachSoundEnergy(fname)    
-    ClassificateEnergy(energyValues)
+    energyValues = EachSoundEnergy(fname)   
     lpcClassification(lpcCoeffs)
+    ClassificateEnergy(energyValues)
     correctRatio = FinalClassification(fname)
     
     lastCorrectRatio = 0
