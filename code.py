@@ -19,11 +19,14 @@ classification = { "voiced": ["b", "d", "g", "z", "Z", "dZ", "D", "a", "e", "i",
                   "silence": "sil" }
 energyResult = {}
 lpcResult = {}
-alpha = 1.2
+alpha = 1.0
 increment = 0.05
 correctRatio = 0
 
 correctcorrect = 0
+
+trainingSet = 80
+testSet = 20
 
 
 def FileLength(fname):
@@ -237,7 +240,6 @@ def FinalClassification(fname):
 #            print(l + " is 50% ")
             finalResult.update({ l: lpcResult[l] })
         
-        print (l[0])
         if finalResult[l] == "VOICED" and l[0] in classification["voiced"]:
             perc += 1
         elif finalResult[l] == "UNVOICED" and l[0] in classification["unvoiced"]:
@@ -271,7 +273,6 @@ for file in materials:
     if cnt == 10:
         break
     fname = file[:-4]
-    print(fname)
     CutVoices(fname)
     lpcCoeffs = lpcCoeff(fname)
     energyValues = EachSoundEnergy(fname)   
@@ -289,7 +290,7 @@ for file in materials:
         elif correctRatio < lastCorrectRatio and nextStop == 0:
             alpha -= increment
             nextStop = 1
-        elif incrementTry == 3:
+        elif incrementTry == 2:
             break
         else:
             alpha += increment
@@ -304,4 +305,4 @@ for file in materials:
     energyResult.clear
     lpcResult.clear
     currentRatio = 0    
-    alpha = 1.2
+    alpha = 1.0
