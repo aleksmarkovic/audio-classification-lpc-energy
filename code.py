@@ -14,7 +14,7 @@ import librosa
 import json
 
 
-classification = { "voiced": ["b", "d", "g", "z", "Z", "dZ", "D"],
+classification = { "voiced": ["b", "d", "g", "z", "Z", "dZ", "D", "a", "e", "i", "o", "u"],
                   "unvoiced": ["p", "t", "k", "s", "S", "C", "cc", "h", "f"],
                   "silence": "sil" }
 energyResult = {}
@@ -22,6 +22,8 @@ lpcResult = {}
 alpha = 1.2
 increment = 0.05
 correctRatio = 0
+
+correctcorrect = 0
 
 
 def FileLength(fname):
@@ -227,21 +229,28 @@ def FinalClassification(fname):
 #            continue
         if lpcResult[l] == energyResult[l]:
 #            print(l + " is 100% " + lpcResult[l])
-            finalResult.update({ l: " is " + lpcResult[l] })
-            perc += 1
+            finalResult.update({ l: lpcResult[l] })
         elif energyResult[l] == "SILENCE":
 #            print(l + " is 100% " + energyResult[l])
-            finalResult.update({ l: " is " + energyResult[l] })
-            perc += 1
+            finalResult.update({ l: energyResult[l] })
         else:
 #            print(l + " is 50% ")
-            finalResult.update({ l: " is " + lpcResult[l] })
+            finalResult.update({ l: lpcResult[l] })
+        
+        print (l[0])
+        if finalResult[l] == "VOICED" and l[0] in classification["voiced"]:
+            perc += 1
+        elif finalResult[l] == "UNVOICED" and l[0] in classification["unvoiced"]:
+            perc += 1
+        elif finalResult[l] == "SILENCE":
+            perc +=1
+            
             
     perc = perc/len(lpcResult) * 100
     correctRatio = perc
     perc = "{:.2f}".format(perc)
     print("CORRECT IS: ", perc, "%")
-#    finalResult.update({ "FINAL RESULT":  str(perc) + "%" })
+    finalResult.update({ "FINAL RESULT":  str(perc) + "%" })
 #    f = open("Results/" + fname,"w")
 #    f.write(str(finalResult))
 #    f.close()
@@ -259,7 +268,7 @@ for (dirpath, dirnames, filenames) in os.walk("Materials/wav_sm04"):
 
 cnt = 0
 for file in materials:    
-    if cnt == 50:
+    if cnt == 10:
         break
     fname = file[:-4]
     print(fname)
